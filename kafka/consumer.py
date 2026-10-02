@@ -12,19 +12,40 @@ consumer = KafkaConsumer(
     value_deserializer=lambda value: json.loads(value.decode("utf-8"))
 )
 
-print("Kafka consumer started...")
+def calculate_risk(transaction):
+    score = 0
+
+    if transaction["amount"] > 500:
+        score += 20
+
+    if transaction["amount"] > 200:
+        score += 15
+
+    if transaction["is_fraud"] == 1:
+        score += 25
+
+    if score >= 40:
+        risk_level = "HIGH"
+    elif score >= 20:
+        risk_level = "MEDIUM"
+    else:
+        risk_level = "LOW"
+
+    return score, risk_level
+
+print("Kafka risk consumer started...")
 print("Waiting for transactions...")
 
 for message in consumer:
     transaction = message.value
 
+    risk_score, risk_level = calculate_risk(transaction)
+
     print(
-        "Received transaction:",
-        transaction["transaction_id"],
-        "| Amount:",
-        transaction["amount"],
-        "| Customer:",
-        transaction["customer_id"],
-        "| Device:",
-        transaction["device_id"]
+        "Transaction:", transaction["transaction_id"],
+        "| Amount:", transaction["amount"],
+        "| Customer:", transaction["customer_id"],
+        "| Device:", transaction["device_id"],
+        "| Risk Score:", risk_score,
+        "| Risk:", risk_level
     )
