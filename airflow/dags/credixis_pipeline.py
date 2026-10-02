@@ -18,6 +18,10 @@ def load_transactions_to_db():
     from src.load_to_db import main
     main()
 
+def calculate_risk():
+    from src.risk_engine import main
+    main()
+
 
 with DAG(
     dag_id="credixis_pipeline",
@@ -35,5 +39,9 @@ with DAG(
         task_id="load_transactions_to_db",
         python_callable=load_transactions_to_db,
     )
+    risk_task = PythonOperator(
+    task_id="calculate_risk",
+    python_callable=calculate_risk,
+    )
 
-    validate_task >> load_db_task
+    validate_task >> load_db_task >> risk_task
