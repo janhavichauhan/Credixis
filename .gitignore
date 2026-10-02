@@ -27,3 +27,7 @@ data/
 .agents/
 
 skills-lock.json
+
+# Airflow
+logs/
+config/
