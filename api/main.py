@@ -390,3 +390,54 @@ def get_customer_connections(
         "connected_customers":
             record["connected_customers"]
     }
+
+@app.get("/fraud-investigation/{customer_id}")
+def fraud_investigation(customer_id: str):
+
+    with neo4j_driver.session() as session:
+
+        result = session.run("""
+            MATCH (c:Customer {customer_id: $customer_id})
+
+            OPTIONAL MATCH
+                (c)-[:USES_DEVICE]->(d:Device)
+                <-[:USES_DEVICE]-(other:Customer)
+
+            WHERE other IS NOT NULL
+              AND other.customer_id <> $customer_id
+
+            OPTIONAL MATCH
+                (other)-[:MAKES]->(t:Transaction)
+
+            WITH
+                c,
+                other,
+                collect(DISTINCT d.device_id) AS shared_devices,
+                count(
+                    CASE
+                        WHEN t.is_fraud = 1
+                        THEN 1
+                    END
+                ) AS fraud_transactions
+
+            RETURN
+                c.customer_id AS customer_id,
+                collect({
+                    connected_customer: other.customer_id,
+                    shared_devices: shared_devices,
+                    fraud_transactions: fraud_transactions
+                })[..20] AS connections
+        """, customer_id=customer_id)
+
+        record = result.single()
+
+    if record is None:
+        return {
+            "message": "Customer not found"
+        }
+
+    return {
+        "customer_id": record["customer_id"],
+        "connections": record["connections"]
+    }
+
