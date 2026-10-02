@@ -9,6 +9,10 @@ venv/
 # Kaggle dataset
 data/creditcard.csv
 
+# Data files
+data/
+
+
 # Environment variables
 .env
 
@@ -18,3 +22,8 @@ data/creditcard.csv
 
 # Logs
 *.log
+
+# Local agent/config files
+.agents/
+
+skills-lock.json
