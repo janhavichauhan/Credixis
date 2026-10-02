@@ -1194,5 +1194,30 @@ The project brings together **batch processing, streaming, relational analytics,
 * Software Engineering
 
 ---
+<img width="798" height="242" alt="Screenshot 2026-10-02 190027" src="https://github.com/user-attachments/assets/c99043a7-faf9-4b54-8507-6467e1379cfb" />
+
+<img width="935" height="270" alt="Screenshot 2026-10-02 171100" src="https://github.com/user-attachments/assets/f0bd8411-57dd-4cd6-9540-0d7d22589e11" />
+
+<img width="803" height="247" alt="Screenshot 2026-10-02 190042" src="https://github.com/user-attachments/assets/5dfb9e8c-13a4-4a37-80a2-b89f1aaf1886" />
+
+<img width="804" height="278" alt="Screenshot 2026-10-02 192403" src="https://github.com/user-attachments/assets/3a9cff43-2cdc-4724-b162-863659323328" />
+
+<img width="869" height="332" alt="Screenshot 2026-10-02 150902" src="https://github.com/user-attachments/assets/4ca9d1bb-3af6-4bd7-8600-133c6a169890" />
+
+<img width="800" height="344" alt="Screenshot 2026-10-02 120806" src="https://github.com/user-attachments/assets/6b8c94a0-e9b0-4968-a555-f5c7f9e079d5" />
+
+<img width="905" height="377" alt="Screenshot 2026-10-02 152246" src="https://github.com/user-attachments/assets/729365f9-fb92-4eba-a54a-2135aba62ed2" />
+
+<img width="924" height="267" alt="image" src="https://github.com/user-attachments/assets/78b9a256-c755-4150-9ed6-f9047c68779b" />
+
+<img width="959" height="418" alt="image" src="https://github.com/user-attachments/assets/ba809a19-1e53-4ab9-a3f6-813f4277bc26" />
+
+
+
+
+
+
+
+
 
 
