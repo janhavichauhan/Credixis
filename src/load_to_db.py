@@ -3,7 +3,6 @@ import pandas as pd
 import psycopg2
 from dotenv import load_dotenv
 from psycopg2.extras import execute_values
-from streamlit import columns
 
 load_dotenv()
 
@@ -26,6 +25,14 @@ def insert_data(df):
 
     connection = psycopg2.connect(DATABASE_URL)
     cursor = connection.cursor()
+
+    print("Clearing existing transactions...")
+
+    cursor.execute(
+        "TRUNCATE TABLE transactions RESTART IDENTITY;"
+    )
+
+    connection.commit()
 
     columns = [
         "Time",
