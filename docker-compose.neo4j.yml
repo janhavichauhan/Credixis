@@ -9,7 +9,12 @@ services:
       - "7687:7687"
 
     environment:
-      NEO4J_AUTH: neo4j/credixis123
+      NEO4J_AUTH: ${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+
+      # Memory configuration
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+      NEO4J_server_memory_pagecache_size: 512m
 
     volumes:
       - neo4j_data:/data
