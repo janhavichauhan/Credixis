@@ -1,12 +1,16 @@
 import os
+
 import psycopg2
 from dotenv import load_dotenv
 from fastapi import FastAPI
-
+from fastapi.middleware.cors import CORSMiddleware
 from neo4j import GraphDatabase
 
 
+# ============================================================
 # Load environment variables
+# ============================================================
+
 load_dotenv()
 
 
@@ -41,6 +45,22 @@ neo4j_driver = GraphDatabase.driver(
 
 app = FastAPI(
     title="Credixis Risk API"
+)
+
+
+# ============================================================
+# CORS
+# ============================================================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -105,29 +125,22 @@ def get_risk_results():
         results.append({
 
             "risk_id": row[0],
-
             "transaction_id": row[1],
-
             "customer_id": row[2],
-
             "device_id": row[3],
-
             "amount": float(row[4]),
-
             "risk_score": row[5],
-
             "risk_level": row[6],
-
             "is_fraud": row[7],
-
             "processed_at": row[8]
+
         })
 
     return {
 
         "count": len(results),
-
         "results": results
+
     }
 
 
@@ -169,29 +182,22 @@ def get_high_risk_results():
         results.append({
 
             "risk_id": row[0],
-
             "transaction_id": row[1],
-
             "customer_id": row[2],
-
             "device_id": row[3],
-
             "amount": float(row[4]),
-
             "risk_score": row[5],
-
             "risk_level": row[6],
-
             "is_fraud": row[7],
-
             "processed_at": row[8]
+
         })
 
     return {
 
         "count": len(results),
-
         "results": results
+
     }
 
 
@@ -240,26 +246,17 @@ def get_transaction_risk(
     return {
 
         "risk_id": row[0],
-
         "transaction_id": row[1],
-
         "customer_id": row[2],
-
         "device_id": row[3],
-
         "ip_address": row[4],
-
         "merchant_id": row[5],
-
         "amount": float(row[6]),
-
         "risk_score": row[7],
-
         "risk_level": row[8],
-
         "is_fraud": row[9],
-
         "processed_at": row[10]
+
     }
 
 
@@ -389,22 +386,36 @@ def get_customer_connections(
 
         "connected_customers":
             record["connected_customers"]
+
     }
 
+
+# ============================================================
+# Fraud investigation
+# ============================================================
+
 @app.get("/fraud-investigation/{customer_id}")
-def fraud_investigation(customer_id: str):
+def fraud_investigation(
+    customer_id: str
+):
 
     with neo4j_driver.session() as session:
 
         result = session.run("""
-            MATCH (c:Customer {customer_id: $customer_id})
+
+            MATCH (
+                c:Customer {
+                    customer_id: $customer_id
+                }
+            )
 
             OPTIONAL MATCH
                 (c)-[:USES_DEVICE]->(d:Device)
                 <-[:USES_DEVICE]-(other:Customer)
 
-            WHERE other IS NOT NULL
-              AND other.customer_id <> $customer_id
+            WHERE
+                other IS NOT NULL
+                AND other.customer_id <> $customer_id
 
             OPTIONAL MATCH
                 (other)-[:MAKES]->(t:Transaction)
@@ -412,7 +423,10 @@ def fraud_investigation(customer_id: str):
             WITH
                 c,
                 other,
-                collect(DISTINCT d.device_id) AS shared_devices,
+                collect(
+                    DISTINCT d.device_id
+                ) AS shared_devices,
+
                 count(
                     CASE
                         WHEN t.is_fraud = 1
@@ -422,24 +436,46 @@ def fraud_investigation(customer_id: str):
 
             RETURN
                 c.customer_id AS customer_id,
+
                 collect({
-                    connected_customer: other.customer_id,
-                    shared_devices: shared_devices,
-                    fraud_transactions: fraud_transactions
+
+                    connected_customer:
+                        other.customer_id,
+
+                    shared_devices:
+                        shared_devices,
+
+                    fraud_transactions:
+                        fraud_transactions
+
                 })[..20] AS connections
+
         """, customer_id=customer_id)
 
         record = result.single()
 
+
     if record is None:
+
         return {
             "message": "Customer not found"
         }
 
+
     return {
-        "customer_id": record["customer_id"],
-        "connections": record["connections"]
+
+        "customer_id":
+            record["customer_id"],
+
+        "connections":
+            record["connections"]
+
     }
+
+
+# ============================================================
+# Dashboard metrics
+# ============================================================
 
 @app.get("/dashboard/metrics")
 def dashboard_metrics():
@@ -447,29 +483,48 @@ def dashboard_metrics():
     connection = get_connection()
     cursor = connection.cursor()
 
+
+    # --------------------------------------------------------
     # Total transactions
+    # --------------------------------------------------------
+
     cursor.execute("""
         SELECT COUNT(*)
         FROM transactions
     """)
+
     total_transactions = cursor.fetchone()[0]
 
+
+    # --------------------------------------------------------
     # Fraud transactions
+    # --------------------------------------------------------
+
     cursor.execute("""
         SELECT COUNT(*)
         FROM transactions
         WHERE is_fraud = TRUE
     """)
+
     fraud_transactions = cursor.fetchone()[0]
 
+
+    # --------------------------------------------------------
     # Average transaction amount
+    # --------------------------------------------------------
+
     cursor.execute("""
         SELECT AVG(amount)
         FROM transactions
     """)
+
     average_amount = cursor.fetchone()[0]
 
+
+    # --------------------------------------------------------
     # Risk distribution
+    # --------------------------------------------------------
+
     cursor.execute("""
         SELECT
             risk_level,
@@ -480,95 +535,63 @@ def dashboard_metrics():
 
     risk_rows = cursor.fetchall()
 
-    cursor.close()
-    connection.close()
-
-    risk_distribution = {
-        "LOW": 0,
-        "MEDIUM": 0,
-        "HIGH": 0
-    }
-
-    for risk_level, count in risk_rows:
-        risk_distribution[risk_level] = count
-
-    fraud_rate = (
-        (fraud_transactions / total_transactions) * 100
-        if total_transactions > 0
-        else 0
-    )
-
-    return {
-        "total_transactions": total_transactions,
-        "fraud_transactions": fraud_transactions,
-        "fraud_rate_percent": round(fraud_rate, 4),
-        "average_transaction_amount": round(float(average_amount), 2),
-        "risk_distribution": risk_distribution
-    }
-
-@app.get("/dashboard/metrics")
-def dashboard_metrics():
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    # Total transactions
-    cursor.execute("""
-        SELECT COUNT(*)
-        FROM transactions
-    """)
-    total_transactions = cursor.fetchone()[0]
-
-    # Fraud transactions
-    cursor.execute("""
-        SELECT COUNT(*)
-        FROM transactions
-        WHERE is_fraud = TRUE
-    """)
-    fraud_transactions = cursor.fetchone()[0]
-
-    # Average transaction amount
-    cursor.execute("""
-        SELECT AVG(amount)
-        FROM transactions
-    """)
-    average_amount = cursor.fetchone()[0]
-
-    # Risk distribution for processed transactions
-    cursor.execute("""
-        SELECT
-            risk_level,
-            COUNT(*)
-        FROM risk_results
-        GROUP BY risk_level
-    """)
-
-    risk_rows = cursor.fetchall()
 
     cursor.close()
     connection.close()
+
+
+    # --------------------------------------------------------
+    # Initialize risk distribution
+    # --------------------------------------------------------
 
     processed_risk_distribution = {
+
         "LOW": 0,
         "MEDIUM": 0,
         "HIGH": 0
+
     }
+
 
     for risk_level, count in risk_rows:
+
         processed_risk_distribution[risk_level] = count
 
-    # Calculate fraud rate
+
+    # --------------------------------------------------------
+    # Fraud rate
+    # --------------------------------------------------------
+
     fraud_rate = (
+
         (fraud_transactions / total_transactions) * 100
+
         if total_transactions > 0
+
         else 0
+
     )
 
-    return {
-        "total_transactions": total_transactions,
-        "fraud_transactions": fraud_transactions,
-        "fraud_rate_percent": round(fraud_rate, 4),
-        "average_transaction_amount": round(float(average_amount), 2),
-        "processed_risk_distribution": processed_risk_distribution
-    }
 
+    # --------------------------------------------------------
+    # Response
+    # --------------------------------------------------------
+
+    return {
+
+        "total_transactions":
+            total_transactions,
+
+        "fraud_transactions":
+            fraud_transactions,
+
+        "fraud_rate_percent":
+            round(fraud_rate, 4),
+
+        "average_transaction_amount":
+            round(float(average_amount), 2),
+
+        "processed_risk_distribution":
+            processed_risk_distribution
+
+    }
