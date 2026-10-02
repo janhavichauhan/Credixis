@@ -390,3 +390,185 @@ def get_customer_connections(
         "connected_customers":
             record["connected_customers"]
     }
+
+@app.get("/fraud-investigation/{customer_id}")
+def fraud_investigation(customer_id: str):
+
+    with neo4j_driver.session() as session:
+
+        result = session.run("""
+            MATCH (c:Customer {customer_id: $customer_id})
+
+            OPTIONAL MATCH
+                (c)-[:USES_DEVICE]->(d:Device)
+                <-[:USES_DEVICE]-(other:Customer)
+
+            WHERE other IS NOT NULL
+              AND other.customer_id <> $customer_id
+
+            OPTIONAL MATCH
+                (other)-[:MAKES]->(t:Transaction)
+
+            WITH
+                c,
+                other,
+                collect(DISTINCT d.device_id) AS shared_devices,
+                count(
+                    CASE
+                        WHEN t.is_fraud = 1
+                        THEN 1
+                    END
+                ) AS fraud_transactions
+
+            RETURN
+                c.customer_id AS customer_id,
+                collect({
+                    connected_customer: other.customer_id,
+                    shared_devices: shared_devices,
+                    fraud_transactions: fraud_transactions
+                })[..20] AS connections
+        """, customer_id=customer_id)
+
+        record = result.single()
+
+    if record is None:
+        return {
+            "message": "Customer not found"
+        }
+
+    return {
+        "customer_id": record["customer_id"],
+        "connections": record["connections"]
+    }
+
+@app.get("/dashboard/metrics")
+def dashboard_metrics():
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    # Total transactions
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM transactions
+    """)
+    total_transactions = cursor.fetchone()[0]
+
+    # Fraud transactions
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM transactions
+        WHERE is_fraud = TRUE
+    """)
+    fraud_transactions = cursor.fetchone()[0]
+
+    # Average transaction amount
+    cursor.execute("""
+        SELECT AVG(amount)
+        FROM transactions
+    """)
+    average_amount = cursor.fetchone()[0]
+
+    # Risk distribution
+    cursor.execute("""
+        SELECT
+            risk_level,
+            COUNT(*)
+        FROM risk_results
+        GROUP BY risk_level
+    """)
+
+    risk_rows = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    risk_distribution = {
+        "LOW": 0,
+        "MEDIUM": 0,
+        "HIGH": 0
+    }
+
+    for risk_level, count in risk_rows:
+        risk_distribution[risk_level] = count
+
+    fraud_rate = (
+        (fraud_transactions / total_transactions) * 100
+        if total_transactions > 0
+        else 0
+    )
+
+    return {
+        "total_transactions": total_transactions,
+        "fraud_transactions": fraud_transactions,
+        "fraud_rate_percent": round(fraud_rate, 4),
+        "average_transaction_amount": round(float(average_amount), 2),
+        "risk_distribution": risk_distribution
+    }
+
+@app.get("/dashboard/metrics")
+def dashboard_metrics():
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    # Total transactions
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM transactions
+    """)
+    total_transactions = cursor.fetchone()[0]
+
+    # Fraud transactions
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM transactions
+        WHERE is_fraud = TRUE
+    """)
+    fraud_transactions = cursor.fetchone()[0]
+
+    # Average transaction amount
+    cursor.execute("""
+        SELECT AVG(amount)
+        FROM transactions
+    """)
+    average_amount = cursor.fetchone()[0]
+
+    # Risk distribution for processed transactions
+    cursor.execute("""
+        SELECT
+            risk_level,
+            COUNT(*)
+        FROM risk_results
+        GROUP BY risk_level
+    """)
+
+    risk_rows = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    processed_risk_distribution = {
+        "LOW": 0,
+        "MEDIUM": 0,
+        "HIGH": 0
+    }
+
+    for risk_level, count in risk_rows:
+        processed_risk_distribution[risk_level] = count
+
+    # Calculate fraud rate
+    fraud_rate = (
+        (fraud_transactions / total_transactions) * 100
+        if total_transactions > 0
+        else 0
+    )
+
+    return {
+        "total_transactions": total_transactions,
+        "fraud_transactions": fraud_transactions,
+        "fraud_rate_percent": round(fraud_rate, 4),
+        "average_transaction_amount": round(float(average_amount), 2),
+        "processed_risk_distribution": processed_risk_distribution
+    }
+
