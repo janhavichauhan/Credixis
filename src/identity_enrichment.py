@@ -39,6 +39,12 @@ def main():
     print("Identity enrichment completed!")
     print("Rows:", len(df))
 
+    print("\nUnique identities:")
+    print("Customers:", df["customer_id"].nunique())
+    print("Devices:", df["device_id"].nunique())
+    print("IP addresses:", df["ip_address"].nunique())
+    print("Merchants:", df["merchant_id"].nunique())
+
     print("\nSample enriched transactions:")
     print(
         df[
