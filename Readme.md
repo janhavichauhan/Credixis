@@ -8,6 +8,8 @@
 
 **Credixis** is a data engineering project that demonstrates how raw credit card transaction data can be transformed into actionable fraud and risk intelligence through an end-to-end data pipeline.
 
+https://github.com/user-attachments/assets/55348bb2-2c43-4e37-b2a3-6f2e4d5ca626
+
 The platform combines:
 
 * Python-based data ingestion
